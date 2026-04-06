@@ -6,69 +6,99 @@ import 'reactflow/dist/style.css';
 export default function WritingApp() {
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
 
-  // This function adds a new node to the map
   const addNode = () => {
+    const id = `node-${Date.now()}`;
     const newNode = {
-      id: `node-${nodes.length + 1}`,
-      data: { 
-        label: `Chapter ${nodes.length + 1}`, 
-        objective: '', 
-        facts: '' 
-      },
-      position: { x: Math.random() * 400, y: Math.random() * 400 },
-      style: { border: '1px solid #777', padding: '10px', borderRadius: '5px', background: '#fff' }
+      id,
+      data: { label: `New Chapter`, objective: '', facts: '' },
+      position: { x: 100, y: 100 },
+      style: { border: '1px solid #777', padding: '10px', borderRadius: '5px', background: '#fff', width: 150 }
     };
     setNodes((nds) => nds.concat(newNode));
   };
 
-  const onNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
-  );
+  const onNodesChange = useCallback((chs) => setNodes((nds) => applyNodeChanges(chs, nds)), []);
+  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
 
-  const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
-    []
-  );
+  // When a node is clicked, "select" it to show in the sidebar
+  const onNodeClick = (event, node) => setSelectedNodeId(node.id);
+
+  // The "Brain" that updates the specific node's data
+  const updateNodeData = (field, value) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === selectedNodeId) {
+          return { ...node, data: { ...node.data, [field]: value } };
+        }
+        return node;
+      })
+    );
+  };
+
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', fontFamily: 'sans-serif' }}>
       
-      {/* LEFT PANE: THE VISUAL MAP */}
+      {/* LEFT: THE MAP */}
       <div style={{ flex: 2, position: 'relative', borderRight: '2px solid #eee' }}>
-        <button 
-          onClick={addNode}
-          style={{ position: 'absolute', top: 10, left: 10, zIndex: 4, padding: '10px 20px', cursor: 'pointer', background: '#0070f3', color: 'white', border: 'none', borderRadius: '5px' }}
-        >
-          + Add Chapter Node
-        </button>
+        <button onClick={addNode} style={btnStyle}>+ Add Node</button>
         <ReactFlow 
           nodes={nodes} 
           edges={edges} 
           onNodesChange={onNodesChange} 
           onConnect={onConnect}
+          onNodeClick={onNodeClick}
           fitView
         >
-          <Background color="#aaa" gap={20} />
+          <Background />
           <Controls />
         </ReactFlow>
       </div>
 
-      {/* RIGHT PANE: THE LINEAR LIST */}
-      <div style={{ flex: 1, padding: '40px', backgroundColor: '#fafafa', overflowY: 'auto' }}>
-        <h2 style={{ borderBottom: '2px solid #333', paddingBottom: '10px' }}>Writing Outline</h2>
-        {nodes.length === 0 && <p style={{ color: '#888' }}>Add a node on the map to start your outline.</p>}
-        <div style={{ marginTop: '20px' }}>
-          {nodes.map((node, index) => (
-            <div key={node.id} style={{ background: '#fff', padding: '15px', marginBottom: '10px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', borderLeft: '5px solid #0070f3' }}>
-              <strong>{index + 1}. {node.data.label}</strong>
-              <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>ID: {node.id}</div>
-            </div>
-          ))}
-        </div>
+      {/* RIGHT: THE EDITING PANEL */}
+      <div style={{ flex: 1, padding: '30px', backgroundColor: '#fff', overflowY: 'auto', boxShadow: '-5px 0 15px rgba(0,0,0,0.05)' }}>
+        {selectedNode ? (
+          <div>
+            <button onClick={() => setSelectedNodeId(null)} style={{ float: 'right' }}>✕</button>
+            <h3>Edit Chapter</h3>
+            <label style={labelStyle}>Title</label>
+            <input 
+              style={inputStyle}
+              value={selectedNode.data.label} 
+              onChange={(e) => updateNodeData('label', e.target.value)} 
+            />
+            <label style={labelStyle}>Objective</label>
+            <textarea 
+              style={textStyle}
+              value={selectedNode.data.objective} 
+              onChange={(e) => updateNodeData('objective', e.target.value)} 
+            />
+            <label style={labelStyle}>Key Supporting Facts</label>
+            <textarea 
+              style={{ ...textStyle, height: '150px' }}
+              value={selectedNode.data.facts} 
+              onChange={(e) => updateNodeData('facts', e.target.value)} 
+              placeholder="Fact 1, Fact 2, etc."
+            />
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', marginTop: '50px', color: '#888' }}>
+            <p>Select a node on the map to edit details.</p>
+            <hr />
+            <h4>Outline Preview</h4>
+            {nodes.map((n, i) => <div key={n.id} style={{ textAlign: 'left' }}>{i + 1}. {n.data.label}</div>)}
+          </div>
+        )}
       </div>
-
     </div>
   );
 }
+
+// Styles
+const btnStyle = { position: 'absolute', top: 10, left: 10, zIndex: 4, padding: '10px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none', borderRadius: '4px' };
+const labelStyle = { display: 'block', marginTop: '20px', fontWeight: 'bold', fontSize: '14px' };
+const inputStyle = { width: '100%', padding: '10px', marginTop: '5px', border: '1px solid #ccc', borderRadius: '4px' };
+const textStyle = { width: '100%', padding: '10px', marginTop: '5px', border: '1px solid #ccc', borderRadius: '4px', height: '80px', fontFamily: 'inherit' };
